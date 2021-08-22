@@ -3,6 +3,14 @@ import getpass
 current_username = ''
 users = {}
 
+def login_required(func):
+    def wrapper(*args, **kwargs):
+        if current_username != '':
+            func(args, kwargs)
+        else:
+            print('you are not logged in. please login')
+    return wrapper
+
 def login(username, password) -> bool:
     if username not in users: return False
     if users[username]['password'] == password:
@@ -15,19 +23,24 @@ def login(username, password) -> bool:
 def register(username, password):
     users[username] = {'password': password, 'balance': 0}
 
+@login_required
 def logout():
     global current_username
     current_username = ''
 
+@login_required
 def get_balance():
     return users[current_username]['balance']
 
+@login_required
 def add(amount:int):
     users[current_username]['balance'] += amount
 
+@login_required
 def withdraw(amount:int):
     users[current_username]['balance'] -= amount
 
+@login_required
 def delete_account():
     users.pop(current_username)
 
@@ -78,7 +91,7 @@ while True:
     elif command == "delete":
         delete_account()
         print('account deleted')
-        
+
     elif command == "exit":
         print('see you later')
 
