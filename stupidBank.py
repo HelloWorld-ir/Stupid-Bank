@@ -27,10 +27,11 @@ def register(username, password):
 def logout():
     global current_username
     current_username = ''
+    print('loged out sucessfuly.')
 
 @login_required
 def get_balance():
-    return users[current_username]['balance']
+    print('your account balance:', users[current_username]['balance'])
 
 @login_required
 def add(amount:int):
@@ -43,6 +44,7 @@ def withdraw(amount:int):
 @login_required
 def delete_account():
     users.pop(current_username)
+    print('account deleted')
 
 print('wellcome to STUPID BANK!')
 while True:
@@ -65,7 +67,7 @@ while True:
 
     elif command == "login":
         username = input('enter username: ')
-        password = input('enter password: ')
+        password = getpass.ge('enter password: ')
         if login(username, password):
             print(f'wellcome {username}.')
         else:
@@ -73,24 +75,22 @@ while True:
 
     elif command == "logout":
         logout()
-        print('loged out sucessfuly.')
 
     elif command == "balance":
-        print('your account balance:',get_balance())
+        get_balance()
 
     elif command == "add":
         amount = int(input('enter your amount: '))
         add(amount)
-        print('your account balance:', get_balance())
+        get_balance()
 
     elif command == "withdraw":
         amount = int(input('enter your amount: '))
         withdraw(amount)
-        print('added, your account balance:', get_balance())
+        get_balance()
 
     elif command == "delete":
         delete_account()
-        print('account deleted')
 
     elif command == "exit":
         print('see you later')
