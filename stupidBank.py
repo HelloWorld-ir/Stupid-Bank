@@ -46,54 +46,69 @@ def delete_account():
     users.pop(current_username)
     print('account deleted')
 
+def register_handler():
+    while True:
+        username = input('enter your username: ')
+        if username in users:
+            print(f'{username} exists. please try another one')
+        else: break
+    while True:
+        password = getpass.getpass('enter your password: ')
+        confirm = getpass.getpass('confirm your password: ')
+        if password != confirm:
+            print("passwords dont't match!")
+        else:
+            register(username, password)
+            print('registered sucessfuly. you can login now.')
+            break
+
+def login_handler():
+    username = input('enter username: ')
+    password = getpass.ge('enter password: ')
+    if login(username, password):
+        print(f'wellcome {username}.')
+    else:
+        print('username or password is wrong')
+
+def logout_handler():
+    logout()
+
+def balance_handler():
+    get_balance()
+
+def add_handler():
+    amount = int(input('enter your amount: '))
+    add(amount)
+    get_balance()
+
+def withdraw_handler():
+    amount = int(input('enter your amount: '))
+    withdraw(amount)
+    get_balance()
+
+def delete_handler():
+    delete_account()
+
+def exit_handler():
+    print('see you later')
+    exit(0)
+
+commands = {
+    'register': register_handler,
+    'login': login_handler,
+    'logout': login_handler,
+    'balance': balance_handler,
+    'add': add_handler,
+    'withdraw': withdraw_handler,
+    'delete': delete_handler,
+    'exit': exit_handler
+}
+
 print('wellcome to STUPID BANK!')
 while True:
     command = input('what can we do for you? ').lower()
-    if command == "register":
-        while True:
-            username = input('enter your username: ')
-            if username in users:
-                print(f'{username} exists. please try another one')
-            else: break
-        while True:
-            password = getpass.getpass('enter your password: ')
-            confirm = getpass.getpass('confirm your password: ')
-            if password != confirm:
-                print("passwords dont't match!")
-            else:
-                register(username, password)
-                print('registered sucessfuly. you can login now.')
-                break
 
-    elif command == "login":
-        username = input('enter username: ')
-        password = getpass.ge('enter password: ')
-        if login(username, password):
-            print(f'wellcome {username}.')
-        else:
-            print('username or password is wrong')
-
-    elif command == "logout":
-        logout()
-
-    elif command == "balance":
-        get_balance()
-
-    elif command == "add":
-        amount = int(input('enter your amount: '))
-        add(amount)
-        get_balance()
-
-    elif command == "withdraw":
-        amount = int(input('enter your amount: '))
-        withdraw(amount)
-        get_balance()
-
-    elif command == "delete":
-        delete_account()
-
-    elif command == "exit":
-        print('see you later')
-
+    if command in commands:
+        commands[command]()
     else:
         print('command not found.')
