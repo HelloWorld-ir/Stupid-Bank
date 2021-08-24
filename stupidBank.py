@@ -4,88 +4,133 @@ current_username = ''
 users = {}
 
 def login_required(func):
-    def wrapper(*args, **kwargs):
-        if current_username != '':
-            func(args, kwargs)
+    def wrapper():
+        if is_logged_in():
+            func()
         else:
-            print('you are not logged in. please login')
+            raise ValueError("login is required")
     return wrapper
 
-def login(username, password) -> bool:
-    if username not in users: return False
-    if users[username]['password'] == password:
-        global current_username
-        current_username = username
-        return True
-    else:
-        return False
+def not_login(func):
+    def wrapper():
+        if not is_logged_in():
+            func()
+        else: 
+            raise ValueError("you should not be logged in")
+    return wrapper
+
+def is_logged_in():
+    return current_username != ''
+
+def user_exists(username):
+    return username in users
+
+def login(username, password):
+    if (username not in users) or users[username]['password'] != password:
+        raise ValueError("username or password is not correct")
+
+    global current_username
+    current_username = username
 
 def register(username, password):
     users[username] = {'password': password, 'balance': 0}
 
-@login_required
 def logout():
     global current_username
     current_username = ''
     print('loged out sucessfuly.')
 
-@login_required
 def get_balance():
-    print('your account balance:', users[current_username]['balance'])
+    return users[current_username]['balance']
 
-@login_required
 def add(amount:int):
     users[current_username]['balance'] += amount
 
-@login_required
 def withdraw(amount:int):
     users[current_username]['balance'] -= amount
 
-@login_required
 def delete_account():
     users.pop(current_username)
     print('account deleted')
 
+@not_login
 def register_handler():
     while True:
         username = input('enter your username: ')
-        if username in users:
-            print(f'{username} exists. please try another one')
-        else: break
+        try:
+            if username.isspace() or username == '':
+                raise ValueError("username is not valid")
+            if user_exists(username):
+                raise ValueError(f'{username} exists. please try another one')
+        except ValueError as err:
+            print(err)
+            continue
+        else:
+            break
+
     while True:
         password = getpass.getpass('enter your password: ')
         confirm = getpass.getpass('confirm your password: ')
-        if password != confirm:
-            print("passwords dont't match!")
+        try:
+            if password.isspace() or password == '':
+                raise ValueError("password is not valid")
+            if password != confirm:
+                raise ValueError("passwords dont't match!")
+        except ValueError as err:
+            print(err)
+            continue
         else:
             register(username, password)
             print('registered sucessfuly. you can login now.')
             break
 
+@not_login
 def login_handler():
     username = input('enter username: ')
-    password = getpass.ge('enter password: ')
-    if login(username, password):
-        print(f'wellcome {username}.')
+    password = getpass.getpass('enter password: ')
+    try: 
+        login(username, password)
+    except ValueError as err:
+        print(err)
     else:
-        print('username or password is wrong')
+        print(f'logged in user {current_username}')
 
+@login_required
 def logout_handler():
     logout()
+    print('user logged out')
 
+@login_required
 def balance_handler():
-    get_balance()
+    print('your current balance:', get_balance())
 
+@login_required
 def add_handler():
     amount = int(input('enter your amount: '))
-    add(amount)
-    get_balance()
+    try:
+        if amount < 0: raise ValueError("amount cannot be negative")
+    except ValueError as err:
+        print(err)
+        add_handler()
+    else:
+        add(amount)
+        balance_handler()
 
+@login_required
 def withdraw_handler():
     amount = int(input('enter your amount: '))
-    withdraw(amount)
-    get_balance()
+    try:
+        if amount < 0: raise ValueError("amount cannot be negative")
+        balance = get_balance()
+        if balance < amount: raise ValueError("not enough balance")
+    except ValueError as err:
+        print(err)
+        withdraw_handler()
+    else:
+        withdraw(amount)
+        balance_handler()
 
+@login_required
 def delete_handler():
     delete_account()
 
@@ -96,7 +141,7 @@ def exit_handler():
 commands = {
     'register': register_handler,
     'login': login_handler,
-    'logout': login_handler,
+    'logout': logout_handler,
     'balance': balance_handler,
     'add': add_handler,
     'withdraw': withdraw_handler,
@@ -107,8 +152,11 @@ commands = {
 print('wellcome to STUPID BANK!')
 while True:
     command = input('what can we do for you? ').lower()
-
-    if command in commands:
+    try:
         commands[command]()
-    else:
-        print('command not found.')
+
+    except ValueError as err:
+        print(err)
+        continue
+    except KeyError:
+        print('command not found')
