@@ -1,162 +1,198 @@
 import getpass
+import hashlib
 
-current_username = ''
-users = {}
+class Hash:
+    def hash(self, string:str):
+        return hashlib.sha256(string.encode('utf-8')).hexdigest()
 
-def login_required(func):
-    def wrapper():
-        if is_logged_in():
-            func()
-        else:
-            raise ValueError("login is required")
-    return wrapper
+class DataContext:
+    def __init__(self, file_path):
+        self.file_path = file_path
+    
+    def load_data(self) -> dict:
+        users = {}
+        with open(self.file_path, "r") as file:
+            for line in file.readlines():
+                username, password, balance = line.split()
+                users[username] = {'password': password, 'balance': balance}
 
-def not_login(func):
-    def wrapper():
-        if not is_logged_in():
-            func()
-        else: 
-            raise ValueError("you should not be logged in")
-    return wrapper
+        return users
 
-def is_logged_in():
-    return current_username != ''
+    def save_data(self, users:dict):
+        with open(self.file_path, "w") as file:
+            for username, val in users.items():
+                file.write(f"{username} {val['password']} {val['balance']}\n")
 
-def user_exists(username):
-    return username in users
+class Bank:
 
-def login(username, password):
-    if (username not in users) or users[username]['password'] != password:
-        raise ValueError("username or password is not correct")
+    def __init__(self, hasher:Hash, context:DataContext):
+        self.current_username = ''
+        self.context = context
+        self.hasher = hasher
+        self.users = self.context.load_data()
 
-    global current_username
-    current_username = username
+    def is_logged_in(self):
+        return self.current_username != ''
 
-def register(username, password):
-    users[username] = {'password': password, 'balance': 0}
+    def user_exists(self, username:str):
+        return username in self.users
 
-def logout():
-    global current_username
-    current_username = ''
-    print('loged out sucessfuly.')
+    def login(self, username:str, password:str):
+        password = self.hasher.hash(password)
+        if (username not in self.users) or self.users[username]['password'] != password:
+            raise ValueError("username or password is not correct")
 
-def get_balance():
-    return users[current_username]['balance']
+        self.current_username = username
 
-def add(amount:int):
-    users[current_username]['balance'] += amount
+    def register(self, username:str, password:str):
+        self.users[username] = {'password': hash(password), 'balance': 0}
 
-def withdraw(amount:int):
-    users[current_username]['balance'] -= amount
+    def logout(self):
+        self.current_username = ''
 
-def delete_account():
-    users.pop(current_username)
-    print('account deleted')
+    def get_balance(self):
+        return self.users[current_username]['balance']
 
-@not_login
-def register_handler():
-    while True:
-        username = input('enter your username: ')
-        try:
-            if username.isspace() or username == '':
-                raise ValueError("username is not valid")
-            if user_exists(username):
-                raise ValueError(f'{username} exists. please try another one')
+    def add(self, amount:int):
+        self.users[self.current_username]['balance'] += amount
+
+    def withdraw(self, amount:int):
+        self.users[self.current_username]['balance'] -= amount
+
+    def delete_account(self):
+        self.users.pop(self.current_username)
+    
+    def __del__(self):
+        self.context.save_data(self.users)
+
+class StupidBank:
+    def __init__(self, bank:Bank):
+        self.bank = bank
+        self.commands = {
+            'register': self.register_handler,
+            'login': self.login_handler,
+            'logout': self.logout_handler,
+            'balance': self.balance_handler,
+            'add': self.add_handler,
+            'withdraw': self.withdraw_handler,
+            'delete': self.delete_handler,
+            'exit': self.exit_handler
+        }
+    
+    def start(self):
+        print('wellcome to STUPID BANK!')
+        while True:
+            command = input('what can we do for you? ').lower()
+            try:
+                self.commands[command]()
+
+            except ValueError as err:
+                print(err)
+                continue
+            except KeyError:
+                print('command not found')
+
+    def login_required(func):
+        def wrapper(self):
+            if self.bank.is_logged_in():
+                func(self)
+            else:
+                raise ValueError("login is required")
+        return wrapper
+
+    def not_login(func):
+        def wrapper(self):
+            if not self.bank.is_logged_in():
+                func(self)
+            else: 
+                raise ValueError("you should not be logged in")
+        return wrapper
+
+    @not_login
+    def register_handler(self):
+        while True:
+            username = input('enter your username: ')
+            try:
+                if username.isspace() or username == '':
+                    raise ValueError("username is not valid")
+                if self.bank.user_exists(username):
+                    raise ValueError(f'{username} exists. please try another one')
+            except ValueError as err:
+                print(err)
+                continue
+            else:
+                break
+
+        while True:
+            password = getpass.getpass('enter your password: ')
+            confirm = getpass.getpass('confirm your password: ')
+            try:
+                if password.isspace() or password == '':
+                    raise ValueError("password is not valid")
+                if password != confirm:
+                    raise ValueError("passwords dont't match!")
+            except ValueError as err:
+                print(err)
+                continue
+            else:
+                self.bank.register(username, password)
+                print('registered sucessfuly. you can login now.')
+                break
+
+    @not_login
+    def login_handler(self):
+        username = input('enter username: ')
+        password = getpass.getpass('enter password: ')
+        try: 
+            self.bank.login(username, password)
         except ValueError as err:
             print(err)
-            continue
         else:
-            break
+            print(f'logged in user {current_username}')
 
-    while True:
-        password = getpass.getpass('enter your password: ')
-        confirm = getpass.getpass('confirm your password: ')
+    @login_required
+    def logout_handler(self):
+        self.bank.logout()
+        print('user logged out')
+
+    @login_required
+    def balance_handler(self):
+        print('your current balance:', self.bank.get_balance())
+
+    @login_required
+    def add_handler(self):
+        amount = int(input('enter your amount: '))
         try:
-            if password.isspace() or password == '':
-                raise ValueError("password is not valid")
-            if password != confirm:
-                raise ValueError("passwords dont't match!")
+            if amount < 0: raise ValueError("amount cannot be negative")
         except ValueError as err:
             print(err)
-            continue
+            self.add_handler()
         else:
-            register(username, password)
-            print('registered sucessfuly. you can login now.')
-            break
+            add(amount)
+            self.balance_handler()
 
-@not_login
-def login_handler():
-    username = input('enter username: ')
-    password = getpass.getpass('enter password: ')
-    try: 
-        login(username, password)
-    except ValueError as err:
-        print(err)
-    else:
-        print(f'logged in user {current_username}')
+    @login_required
+    def withdraw_handler(self):
+        amount = int(input('enter your amount: '))
+        try:
+            if amount < 0: raise ValueError("amount cannot be negative")
+            balance = get_balance()
+            if balance < amount: raise ValueError("not enough balance")
+        except ValueError as err:
+            print(err)
+            self.withdraw_handler()
+        else:
+            self.bank.withdraw(amount)
+            self.balance_handler()
 
-@login_required
-def logout_handler():
-    logout()
-    print('user logged out')
+    @login_required
+    def delete_handler(self):
+        self.bank.delete_account()
+        print('account deleted')
 
-@login_required
-def balance_handler():
-    print('your current balance:', get_balance())
+    def exit_handler(self):
+        print('see you later')
+        exit(0)
 
-@login_required
-def add_handler():
-    amount = int(input('enter your amount: '))
-    try:
-        if amount < 0: raise ValueError("amount cannot be negative")
-    except ValueError as err:
-        print(err)
-        add_handler()
-    else:
-        add(amount)
-        balance_handler()
-
-@login_required
-def withdraw_handler():
-    amount = int(input('enter your amount: '))
-    try:
-        if amount < 0: raise ValueError("amount cannot be negative")
-        balance = get_balance()
-        if balance < amount: raise ValueError("not enough balance")
-    except ValueError as err:
-        print(err)
-        withdraw_handler()
-    else:
-        withdraw(amount)
-        balance_handler()
-
-@login_required
-def delete_handler():
-    delete_account()
-
-def exit_handler():
-    print('see you later')
-    exit(0)
-
-commands = {
-    'register': register_handler,
-    'login': login_handler,
-    'logout': logout_handler,
-    'balance': balance_handler,
-    'add': add_handler,
-    'withdraw': withdraw_handler,
-    'delete': delete_handler,
-    'exit': exit_handler
-}
-
-print('wellcome to STUPID BANK!')
-while True:
-    command = input('what can we do for you? ').lower()
-    try:
-        commands[command]()
-
-    except ValueError as err:
-        print(err)
-        continue
-    except KeyError:
-        print('command not found')
+stupid_bank = StupidBank(Bank(Hash(), DataContext("data.txt")))
+stupid_bank.start()
