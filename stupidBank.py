@@ -31,6 +31,9 @@ class Bank:
         self.hasher = hasher
         self.users = self.context.load_data()
 
+    def get_username(self):
+        return self.current_username
+    
     def is_logged_in(self):
         return self.current_username != ''
 
@@ -62,7 +65,7 @@ class Bank:
     def delete_account(self):
         self.users.pop(self.current_username)
     
-    def __del__(self):
+    def save(self):
         self.context.save_data(self.users)
 
 class StupidBank:
@@ -148,7 +151,7 @@ class StupidBank:
         except ValueError as err:
             print(err)
         else:
-            print(f'logged in user {current_username}')
+            print(f'logged in user {self.bank.get_username()}')
 
     @login_required
     def logout_handler(self):
@@ -168,7 +171,7 @@ class StupidBank:
             print(err)
             self.add_handler()
         else:
-            add(amount)
+            self.bank.add(amount)
             self.balance_handler()
 
     @login_required
@@ -176,7 +179,7 @@ class StupidBank:
         amount = int(input('enter your amount: '))
         try:
             if amount < 0: raise ValueError("amount cannot be negative")
-            balance = get_balance()
+            balance = self.bank.get_balance()
             if balance < amount: raise ValueError("not enough balance")
         except ValueError as err:
             print(err)
